@@ -7,6 +7,7 @@ import asyncio
 from lxml import etree
 
 from config import url, anime_list
+from db import *
 from requests_wrapper import RequestsWrapper
 
 DAYS = {
@@ -19,7 +20,8 @@ DAYS = {
     'raspisSun': 'Воскресенье',
 }
 
-async def get_animes():
+
+def get_animes():
     afisha = {}
 
     r = RequestsWrapper()
@@ -58,7 +60,7 @@ def filter_serie(a):
 async def get_last_serie(anime_url, folder_name):
     api_url = 'https://a71.agorov.org/frame2.php?play='
     folder_name = folder_name.replace(':', '-')
-    folder_path = f'video/{folder_name}}
+    folder_path = f'video/{folder_name}'
     try:
         os.mkdir(folder_path)
     except NotADirectoryError:
@@ -85,6 +87,11 @@ async def get_last_serie(anime_url, folder_name):
     serie_name = [serie for serie in list(series_json) if 'серия' in serie][-1]
     # номер последней серии
     last_serie = str(series_json.get(serie_name))
+    # проверка наличия уже такого файла
+    check_serie = await read_num_from_site(num_from_site=last_serie)
+    if check_serie is not None and len(check_serie) > 0:
+        print(f'Нашли серию в базе check_serie[0]')
+        return check_serie[0]
 
     serie_name = f'{folder_name} ({serie_name})'
     api_url = api_url + last_serie
@@ -105,7 +112,7 @@ async def get_last_serie(anime_url, folder_name):
     with open(file_path, 'wb') as f:
         f.write(content.content)
 
-    return file_path, serie_name
+    return file_path, serie_name, last_serie
 
 
 def get_timer(url):
@@ -123,22 +130,22 @@ async def watcher():
     time_now = dt.now()
     day = time_now.today().weekday()
     key = list(DAYS)[day]
-    animes = await get_animes()
-    animes = animes.get(key) # тут список словарей
-    #for anime_to_watch in anime_list:
+    animes = get_animes()
+    animes = animes.get(key)  # тут список словарей
+    # for anime_to_watch in anime_list:
     for anime in animes:
-        #if anime_to_watch in anime.get('name'):
+        # if anime_to_watch in anime.get('name'):
         url = anime.get('url')
-        #get_timer(url)
-        #get_timer('https://a71.agorov.org/tip/tv/1894-black-clover5.html')
+        # get_timer(url)
+        # get_timer('https://a71.agorov.org/tip/tv/1894-black-clover5.html')
         print(anime)
         video = await get_last_serie(url, anime.get('name'))
         if video:
             videos.append(video)
 
-    #print(len(videos))
+    # print(len(videos))
     return videos
 
-#watcher()
-#print(get_animes())
-#get_last_serie('https://a71.agorov.org/tip/tv/1805-boruto-naruto-next-generations1112.html', 'boruto')
+# watcher()
+# print(get_animes())
+# get_last_serie('https://a71.agorov.org/tip/tv/1805-boruto-naruto-next-generations1112.html', 'boruto')
