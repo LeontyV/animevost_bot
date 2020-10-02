@@ -6,16 +6,25 @@ from aiogram import Bot, Dispatcher, executor
 from config import BOT_TOKEN, api_id, api_hash, phone
 from telethon.errors import SessionPasswordNeededError
 
-DELAY = 60
+# задаем время повторения задания
+DELAY = 3600
 
-loop = asyncio.get_event_loop()
-bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
-
-dp = Dispatcher(bot, loop=loop)
-
+# создаем необходимые папки
 if not os.path.exists('session'):
     os.makedirs('session')
 
+if not os.path.exists('video'):
+    os.makedirs('video')
+
+if not os.path.exists('db'):
+    os.makedirs('db')
+
+# создаем экземпляр бота aiogram
+loop = asyncio.get_event_loop()
+bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
+dp = Dispatcher(bot, loop=loop)
+
+# создаем экземпляр клиента телеграм telethon
 client = TelegramClient('session/'+phone, api_id, api_hash)
 client.connect()
 

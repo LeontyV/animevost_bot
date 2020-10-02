@@ -8,7 +8,7 @@ cursor_videos = conn_videos.cursor()
 if os.path.exists(db_name):
     # Создание таблицы
     cursor_videos.execute("""CREATE TABLE IF NOT EXISTS videos
-                (id integer, title text, num_from_site text, date text, user_id text, downloaded text, uploaded text)
+                (id integer PRIMARY KEY, title text, num_from_site text, date text, user_id text, downloaded text, uploaded text, file_id text)
                 """)
     conn_videos.commit()
     print(f'Таблица {db_name} создана')
@@ -22,14 +22,15 @@ if os.path.exists(db_name):
 
 
 # добавление видео
-async def add_videos(id=None, title=None, num_from_site=None, date=None, to_chat=None):
+async def add_videos(id=None, title=None, num_from_site=None, date=None, to_chat=None, downloaded='False', uploaded='False', file_id=None):
     global conn_videos
     global cursor_videos
 
+    id = cursor_videos.lastrowid
     table = 'videos'
     cursor_videos.execute(f"""
                     INSERT INTO {table}
-                    VALUES ('{title}', '{num_from_site}', '{date}', '{to_chat}')
+                    VALUES ('{id+1}', '{title}', '{num_from_site}', '{date}', '{to_chat}', '{downloaded}', '{uploaded}', '{file_id}')
                 """)
     try:
         conn_videos.commit()
@@ -136,18 +137,17 @@ async def update_download(table='videos', num_from_site=None, value='True'):
     return True
 
 
-async def update_upload(table='videos', num_from_site=None, value='True'):
+async def update_upload(table='videos', field='num_from_site', field_value=None, value='True', file_id=None):
     global conn_videos
     global cursor_videos
-    field = 'num_from_site'
 
     request = f"UPDATE {table} " \
-              f"SET uploaded='{value}' " \
-              f"WHERE {field}='{num_from_site}'"
+              f"SET uploaded='{value}', file_id='{file_id}' " \
+              f"WHERE {field}='{field_value}'"
     try:
         cursor_videos.execute(request)
     except Exception as e:
-        print(f'Не смогли обновить статус загружено! для файла {num_from_site}')
+        print(f'Не смогли обновить статус загружено! для файла {field_value}')
         print(f'Ошибка: {e.args}')
         return False
     return True

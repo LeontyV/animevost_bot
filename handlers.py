@@ -38,6 +38,12 @@ async def echo(message: types.Message):
         await bot.send_message(chat_id=chat_id, text=text)
 
 
+@dp.channel_post_handler(content_types=['text', 'video'])
+async def pick_up(message: types.Message):
+    await update_upload(field='title', field_value=str(message.caption), file_id=str(message.video.file_id))
+    print(message)
+
+
 @dp.message_handler(regexp='/[Ss]tart')
 async def echo(message: types.Message):
     print(message)
@@ -66,14 +72,6 @@ async def post_in_channel():
                 await bot.send_message(chat_id=chat_id, text=text, parse_mode='html', disable_web_page_preview=True)
 
 
-# @dp.channel_post_handler(regexp='/[Nn]ow')
-async def post_video_in_channel():  # (message: types.Message):
+async def post_video_in_channel():
     for chat_id in chat_ids:
-        videos = await watcher()
-        await add_videos(title=videos[1], num_from_site=videos[2], date=str(dt.now()), to_chat=chat_id)
-        await update_download(num_from_site=videos[2])
-        for video in videos:
-            print(f'Отправляем {video[1]}')
-            # me = await bot.get_me()
-            await client.send_file(int(chat_id), video[0], filename=video[1])
-            print(f'Файл {video[1]} отправлен!')
+        await watcher(chat_id)

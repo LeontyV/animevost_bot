@@ -1,4 +1,4 @@
-/venv/
 /video/
 /session/
+/db/
 config.py

@@ -2,12 +2,17 @@ import json
 import os
 import re
 from datetime import datetime as dt
+import math
 
+from telethon.tl.types import DocumentAttributeVideo
+from tqdm import tqdm
 import asyncio
 from lxml import etree
+from requests.exceptions import ConnectionError
 
 from config import url, anime_list
 from db import *
+from main import client
 from requests_wrapper import RequestsWrapper
 
 DAYS = {
@@ -20,6 +25,12 @@ DAYS = {
     'raspisSun': 'Воскресенье',
 }
 
+
+def clean_text(text):
+    text = text.replace('\r', '')
+    text = text.replace('\t', '')
+    text = text.replace('\n', '')
+    return text
 
 def get_animes():
     afisha = {}
@@ -44,29 +55,18 @@ def get_animes():
     return afisha
 
 
-def compare_dates(date):
-    time_now = dt.now()
-
-
-def filter_serie(a):
-    b = []
-    for elem in a:
-        if 'серия' in elem:
-            b.append(elem)
-
-    return b
-
-
 async def get_last_serie(anime_url, folder_name):
     api_url = 'https://a71.agorov.org/frame2.php?play='
     folder_name = folder_name.replace(':', '-')
+    folder_name = re.findall('^([А-яа-я,.!?\s-]+)', folder_name)[0]
+    folder_name = folder_name.strip()
     folder_path = f'video/{folder_name}'
     try:
         os.mkdir(folder_path)
     except NotADirectoryError:
-        print(f'Уберите проблемные символы в имени {folder_path}')
+        print(f'Уберите проблемные символы в имени "{folder_path}"')
     except OSError:
-        print(f'Папка с таким именем {folder_path} уже существует!')
+        print(f'Папка с таким именем "{folder_path}" уже существует!')
 
     r = RequestsWrapper()
     content = r.get_html_page(anime_url, tree=True)
@@ -77,9 +77,7 @@ async def get_last_serie(anime_url, folder_name):
     except IndexError:
         print('не нашли ссылку на список серий')
         return
-    series_text = series_text.replace('\r', '')
-    series_text = series_text.replace('\t', '')
-    series_text = series_text.replace('\n', '')
+    series_text = clean_text(series_text)
     series_text = series_text.replace(',}', '}')
     series_json = json.loads(series_text)
 
@@ -89,9 +87,12 @@ async def get_last_serie(anime_url, folder_name):
     last_serie = str(series_json.get(serie_name))
     # проверка наличия уже такого файла
     check_serie = await read_num_from_site(num_from_site=last_serie)
-    if check_serie is not None and len(check_serie) > 0:
-        print(f'Нашли серию в базе check_serie[0]')
-        return check_serie[0]
+    if check_serie is not None:
+        check_serie = check_serie[0]
+        print(check_serie)
+        if check_serie[5] == 'True':
+            print(f'Нашли серию в базе и она уже скачана.')
+            return True
 
     serie_name = f'{folder_name} ({serie_name})'
     api_url = api_url + last_serie
@@ -104,48 +105,65 @@ async def get_last_serie(anime_url, folder_name):
     format_video = re.findall('([a-zA-Z0-9]+)\?', download_link)[0]
     serie_name += '.' + format_video
     file_path = f'{folder_path}/{serie_name}'
-    if os.path.isfile(file_path):
-        print(f'файл с именем "{serie_name}" уже существует!')
-        return file_path, serie_name
-    print(f'Скачиваем файл {serie_name} \nurl={download_link} \npage={api_url}')
-    content = r.get(download_link)
-    with open(file_path, 'wb') as f:
-        f.write(content.content)
+    file_path = clean_text(file_path)
 
-    return file_path, serie_name, last_serie
+    return download_link, serie_name, last_serie, file_path
 
 
-def get_timer(url):
-    print(url)
-    r = RequestsWrapper()
-    content = r.get_html_page(url, tree=True)
-
-    next_time = content.xpath('//script[contains(text(), "parseInt")]/text()')[0]
-    next_time = re.findall('parseInt\((\d+) ', next_time)[0]
-    print(dt.fromtimestamp(int(next_time)))
-
-
-async def watcher():
-    videos = []
+async def watcher(chat_id):
     time_now = dt.now()
     day = time_now.today().weekday()
     key = list(DAYS)[day]
     animes = get_animes()
-    animes = animes.get(key)  # тут список словарей
-    # for anime_to_watch in anime_list:
-    for anime in animes:
-        # if anime_to_watch in anime.get('name'):
-        url = anime.get('url')
-        # get_timer(url)
-        # get_timer('https://a71.agorov.org/tip/tv/1894-black-clover5.html')
-        print(anime)
-        video = await get_last_serie(url, anime.get('name'))
-        if video:
-            videos.append(video)
 
-    # print(len(videos))
-    return videos
+    for key in list(DAYS):
+        animes = animes.get(key)  # тут список словарей
 
-# watcher()
-# print(get_animes())
-# get_last_serie('https://a71.agorov.org/tip/tv/1805-boruto-naruto-next-generations1112.html', 'boruto')
+        for anime in animes:
+            url = anime.get('url')
+            video_info = await get_last_serie(url, anime.get('name'))
+            if video_info:
+                file_link = video_info[0]
+                file_name = video_info[1]
+                file_uid = video_info[2]
+                file_path = video_info[3]
+
+                if await download_file(file_link, file_name, file_path):
+                    await add_videos(title=file_name, num_from_site=file_uid, date=str(dt.now()), to_chat=chat_id)
+                    await update_download(num_from_site=file_uid)
+                    print(f'Отправляем {file_name}')
+                    # me = await bot.get_me()
+                    await client.send_file(int(chat_id), file_path, filename=file_name, caption=file_name,
+                                           attributes=(DocumentAttributeVideo(10,560,800),))
+                    print(f'Файл {file_name} отправлен!')
+                    await update_upload(field_value=file_uid)
+
+
+async def download_file(download_link, serie_name, file_path):
+    r = RequestsWrapper()
+    if os.path.isfile(file_path):
+        print(f'\nФайл с именем "{serie_name}" уже существует!')
+        return file_path, serie_name
+    print(f'\nСкачиваем файл "{serie_name}" \n\turl={download_link}')
+    for _ in range(5):
+        try:
+            content = r.get(download_link, stream=True)
+        except ConnectionError:
+            print('Ошибка соединения. Нас отвергли! Пробуем ещё!')
+            continue
+        break
+
+    total_size = int(content.headers.get('content-length', 0));
+    block_size = 1024
+    wrote = 0
+    with open(file_path, 'wb') as f:
+        for data in tqdm(content.iter_content(block_size), total=math.ceil(total_size // block_size), unit='KB',
+                         unit_scale=True):
+            wrote = wrote + len(data)
+            f.write(data)
+
+    if total_size != 0 and wrote != total_size:
+        print("Ошибка! Файл не сохранился.")
+        return False
+
+    return True
