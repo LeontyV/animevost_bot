@@ -58,12 +58,13 @@ def filter_serie(a):
 async def get_last_serie(anime_url, folder_name):
     api_url = 'https://a71.agorov.org/frame2.php?play='
     folder_name = folder_name.replace(':', '-')
+    folder_path = f'video/{folder_name}}
     try:
-        os.mkdir(folder_name)
+        os.mkdir(folder_path)
     except NotADirectoryError:
-        print(f'Уберите проблемные символы в имени {folder_name}')
+        print(f'Уберите проблемные символы в имени {folder_path}')
     except OSError:
-        print(f'Папка с таким именем {folder_name} уже существует!')
+        print(f'Папка с таким именем {folder_path} уже существует!')
 
     r = RequestsWrapper()
     content = r.get_html_page(anime_url, tree=True)
@@ -95,17 +96,16 @@ async def get_last_serie(anime_url, folder_name):
     download_link = video_frame.xpath('//a[contains(text(), "480")]/@href')[0]
     format_video = re.findall('([a-zA-Z0-9]+)\?', download_link)[0]
     serie_name += '.' + format_video
-    if os.path.isfile(f'{folder_name}/{serie_name}'):
-        print(f'файл с именем "{folder_name}/{serie_name}" уже существует!')
-        return f'{folder_name}/{serie_name}', serie_name
+    file_path = f'{folder_path}/{serie_name}'
+    if os.path.isfile(file_path):
+        print(f'файл с именем "{serie_name}" уже существует!')
+        return file_path, serie_name
     print(f'Скачиваем файл {serie_name} \nurl={download_link} \npage={api_url}')
     content = r.get(download_link)
-    with open(f'./{folder_name}/{serie_name}', 'wb') as f:
+    with open(file_path, 'wb') as f:
         f.write(content.content)
 
-    #return f'./{folder_name}/{serie_name}', serie_name
-    #return download_link, serie_name
-    #return content.content, serie_name
+    return file_path, serie_name
 
 
 def get_timer(url):
