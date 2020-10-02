@@ -71,6 +71,7 @@ async def post_video_in_channel():  # (message: types.Message):
     for chat_id in chat_ids:
         videos = await watcher()
         await add_videos(title=videos[1], num_from_site=videos[2], date=str(dt.now()), to_chat=chat_id)
+        await update_download(num_from_site=videos[2])
         for video in videos:
             print(f'Отправляем {video[1]}')
             # me = await bot.get_me()
