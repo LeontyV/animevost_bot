@@ -59,7 +59,7 @@ def get_animes():
 async def get_last_serie(anime_url, folder_name):
     api_url = 'https://a71.agorov.org/frame2.php?play='
     folder_name = folder_name.replace(':', '-')
-    folder_name = re.findall('^([ёЁА-яа-я,.!?\s-]+)', folder_name)[0]
+    folder_name = re.findall('^([ёЁА-яа-я,.\s-]+)', folder_name)[0]
     folder_name = folder_name.strip()
     folder_path = f'video/{folder_name}'
     try:
