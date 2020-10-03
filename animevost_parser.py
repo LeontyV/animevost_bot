@@ -4,6 +4,7 @@ import re
 from datetime import datetime as dt
 import math
 
+from moviepy.editor import VideoFileClip
 from telethon.tl.types import DocumentAttributeVideo
 from tqdm import tqdm
 import asyncio
@@ -58,7 +59,7 @@ def get_animes():
 async def get_last_serie(anime_url, folder_name):
     api_url = 'https://a71.agorov.org/frame2.php?play='
     folder_name = folder_name.replace(':', '-')
-    folder_name = re.findall('^([А-яа-я,.!?\s-]+)', folder_name)[0]
+    folder_name = re.findall('^([ёЁА-яа-я,.!?\s-]+)', folder_name)[0]
     folder_name = folder_name.strip()
     folder_path = f'video/{folder_name}'
     try:
@@ -87,12 +88,18 @@ async def get_last_serie(anime_url, folder_name):
     last_serie = str(series_json.get(serie_name))
     # проверка наличия уже такого файла
     check_serie = await read_num_from_site(num_from_site=last_serie)
+    need_to_download = True
+    need_to_upload = True
     if check_serie is not None:
         check_serie = check_serie[0]
         print(check_serie)
         if check_serie[5] == 'True':
             print(f'Нашли серию в базе и она уже скачана.')
-            return True
+            need_to_download = False
+            if check_serie[6] == 'True':
+                need_to_upload = False
+            else:
+                need_to_upload = False
 
     serie_name = f'{folder_name} ({serie_name})'
     api_url = api_url + last_serie
@@ -107,7 +114,7 @@ async def get_last_serie(anime_url, folder_name):
     file_path = f'{folder_path}/{serie_name}'
     file_path = clean_text(file_path)
 
-    return download_link, serie_name, last_serie, file_path
+    return download_link, serie_name, last_serie, file_path, need_to_download, need_to_upload
 
 
 async def watcher(chat_id):
@@ -116,54 +123,70 @@ async def watcher(chat_id):
     key = list(DAYS)[day]
     animes = get_animes()
 
-    for key in list(DAYS):
-        animes = animes.get(key)  # тут список словарей
+    for key in DAYS:
+        anime_list = animes.get(key)  # тут список словарей
 
-        for anime in animes:
+        for anime in anime_list:
             url = anime.get('url')
             video_info = await get_last_serie(url, anime.get('name'))
-            if video_info:
+            if type(video_info) is tuple:
                 file_link = video_info[0]
                 file_name = video_info[1]
                 file_uid = video_info[2]
                 file_path = video_info[3]
+                need_download = video_info[4]
+                need_to_upload = video_info[5]
 
-                if await download_file(file_link, file_name, file_path):
+                if need_download:
+                    await download_file(file_link, file_name, file_path, file_uid)
                     await add_videos(title=file_name, num_from_site=file_uid, date=str(dt.now()), to_chat=chat_id)
                     await update_download(num_from_site=file_uid)
+
+                if need_to_upload:
                     print(f'Отправляем {file_name}')
                     # me = await bot.get_me()
+                    clip = VideoFileClip(file_path)
+                    duration = int(clip.duration)
                     await client.send_file(int(chat_id), file_path, filename=file_name, caption=file_name,
-                                           attributes=(DocumentAttributeVideo(10,560,800),))
+                                           attributes=(DocumentAttributeVideo(duration,800,560),))
                     print(f'Файл {file_name} отправлен!')
                     await update_upload(field_value=file_uid)
 
 
-async def download_file(download_link, serie_name, file_path):
-    r = RequestsWrapper()
-    if os.path.isfile(file_path):
-        print(f'\nФайл с именем "{serie_name}" уже существует!')
-        return file_path, serie_name
-    print(f'\nСкачиваем файл "{serie_name}" \n\turl={download_link}')
-    for _ in range(5):
-        try:
-            content = r.get(download_link, stream=True)
-        except ConnectionError:
-            print('Ошибка соединения. Нас отвергли! Пробуем ещё!')
-            continue
-        break
-
-    total_size = int(content.headers.get('content-length', 0));
-    block_size = 1024
+async def download_file(download_link, serie_name, file_path, file_uid):
+    total_size = 0
     wrote = 0
-    with open(file_path, 'wb') as f:
-        for data in tqdm(content.iter_content(block_size), total=math.ceil(total_size // block_size), unit='KB',
-                         unit_scale=True):
-            wrote = wrote + len(data)
-            f.write(data)
+    for _ in range(5):
+        r = RequestsWrapper()
+        if os.path.isfile(file_path):
+            print(f'\nФайл с именем "{serie_name}" уже существует!')
+            return file_path, serie_name
+        print(f'\nСкачиваем файл "{serie_name}" \n\turl={download_link}')
+        for _ in range(5):
+            try:
+                content = r.get(download_link, stream=True)
+            except ConnectionError:
+                print('Ошибка соединения. Нас отвергли! Пробуем ещё!')
+                continue
+            break
+
+        total_size = int(content.headers.get('content-length', 0));
+        block_size = 1024
+        wrote = 0
+        with open(file_path, 'wb') as f:
+            for data in tqdm(content.iter_content(block_size), total=math.ceil(total_size // block_size), unit='KB',
+                             unit_scale=True):
+                wrote = wrote + len(data)
+                f.write(data)
+
+        if total_size != 0 and wrote != total_size:
+            print("Ошибка! Файл не сохранился.")
+            continue
+        else:
+            break
 
     if total_size != 0 and wrote != total_size:
-        print("Ошибка! Файл не сохранился.")
+        print("Ошибка! Файл после 5 попыток даже не сохранился.")
         return False
 
     return True

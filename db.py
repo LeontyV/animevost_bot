@@ -8,7 +8,7 @@ cursor_videos = conn_videos.cursor()
 if os.path.exists(db_name):
     # Создание таблицы
     cursor_videos.execute("""CREATE TABLE IF NOT EXISTS videos
-                (id integer PRIMARY KEY, title text, num_from_site text, date text, user_id text, downloaded text, uploaded text, file_id text)
+                (id INTEGER PRIMARY KEY, title text, num_from_site text, date text, user_id text, downloaded text, uploaded text, file_id text)
                 """)
     conn_videos.commit()
     print(f'Таблица {db_name} создана')
@@ -22,15 +22,17 @@ if os.path.exists(db_name):
 
 
 # добавление видео
-async def add_videos(id=None, title=None, num_from_site=None, date=None, to_chat=None, downloaded='False', uploaded='False', file_id=None):
+async def add_videos(title=None, num_from_site=None, date=None, to_chat=None, downloaded='False', uploaded='False', file_id=None):
     global conn_videos
     global cursor_videos
 
-    id = cursor_videos.lastrowid
+    last_id = cursor_videos.lastrowid
+    #last_id += 1
+    print(f'Последний номер записи id={last_id}')
     table = 'videos'
     cursor_videos.execute(f"""
-                    INSERT INTO {table}
-                    VALUES ('{id+1}', '{title}', '{num_from_site}', '{date}', '{to_chat}', '{downloaded}', '{uploaded}', '{file_id}')
+                    INSERT OR REPLACE INTO {table}
+                    VALUES ('{last_id}', '{title}', '{num_from_site}', '{date}', '{to_chat}', '{downloaded}', '{uploaded}', '{file_id}')
                 """)
     try:
         conn_videos.commit()
@@ -134,6 +136,9 @@ async def update_download(table='videos', num_from_site=None, value='True'):
         print(f'Не смогли обновить статус загружено! для файла {num_from_site}')
         print(f'Ошибка: {e.args}')
         return False
+
+    updated_row = await read_num_from_site(num_from_site=num_from_site)
+    print(f'updated_row={updated_row}')
     return True
 
 
@@ -150,4 +155,7 @@ async def update_upload(table='videos', field='num_from_site', field_value=None,
         print(f'Не смогли обновить статус загружено! для файла {field_value}')
         print(f'Ошибка: {e.args}')
         return False
+    if field == 'title':
+        updated_row = await read_title(table='videos', title=field_value)
+        print(f'updated_row={updated_row}')
     return True
