@@ -79,4 +79,7 @@ async def post_video_in_channel(messages):
 async def show_db(message: types.Message):
     if message.chat.username in accepted_users:
         db_rows = await show_all()
-        await bot.send_message(chat_id=message.chat.id, text=db_rows, parse_mode='HTML')
+        text = ''
+        for row in db_rows:
+            text = text + f'Запись {str(row[0])} {row[1]} {row[2]}\n'
+        await bot.send_message(chat_id=message.chat.id, text=text, parse_mode='HTML')

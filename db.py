@@ -2,13 +2,17 @@ import sqlite3
 import os
 
 db_name = "db/videos.db"
-is_db_exists = sqlite3.connect(f'file:{db_name}?mode=rw', uri=True)
+try:
+    is_db_exists = sqlite3.connect(f'file:{db_name}?mode=rw', uri=True)
+except sqlite3.OperationalError:
+    is_db_exists = False
+    print('Такой БД нет. Создаем новую!')
 conn_videos = sqlite3.connect(db_name)
 cursor_videos = conn_videos.cursor()
 if not is_db_exists:
     # Создание таблицы videos
     cursor_videos.execute("""CREATE TABLE IF NOT EXISTS videos
-                (id INTEGER PRIMARY KEY, title text, num_from_site text, date text, user_id text, downloaded text, uploaded text, file_id text)
+                (id INTEGER PRIMARY KEY, title text, num_from_site text UNIQUE, date text, user_id text, downloaded text, uploaded text, file_id text)
                 """)
     conn_videos.commit()
     print(f'Таблица {db_name} создана')
@@ -35,17 +39,18 @@ async def add_videos(title=None, num_from_site=None, date=None, to_chat=None, do
     global conn_videos
     global cursor_videos
 
-    last_id = cursor_videos.lastrowid
-    print(f'Последний номер записи id={last_id}')
+    last_id = len(await show_all())
+    print(f'Последний номер записи id={last_id-1}')
     table = 'videos'
-    cursor_videos.execute(f"""
-                    INSERT OR REPLACE INTO {table}
+    try:
+        cursor_videos.execute(f"""
+                    INSERT INTO {table}
                     VALUES ('{last_id}', '{title}', '{num_from_site}', '{date}', '{to_chat}', '{downloaded}', '{uploaded}', '{file_id}')
                 """)
-    try:
         conn_videos.commit()
-    except Exception as e:
-        print(e.args)
+    except sqlite3.IntegrityError:
+        print(f'Запись {title} = {num_from_site} уже есть в БД!')
+        return True
     else:
         print(f'Запись {title} = {num_from_site} добавлена в БД!')
         return True
@@ -166,4 +171,9 @@ async def update_upload(table='videos', field='num_from_site', field_value=None,
     if field == 'title':
         updated_row = await read_title(table='videos', title=field_value)
         print(f'updated_row={updated_row}')
+
+    if field == 'num_from_site':
+        updated_row = await read_num_from_site(table='videos', num_from_site=field_value)
+        print(f'updated_row={updated_row}')
+
     return True

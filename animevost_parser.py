@@ -99,8 +99,6 @@ async def get_last_serie(anime_url, folder_name):
             need_to_download = False
             if check_serie[6] == 'True':
                 need_to_upload = False
-            else:
-                need_to_upload = False
 
     serie_name = f'{folder_name} ({serie_name})'
     api_url = api_url + last_serie
@@ -127,6 +125,7 @@ async def watcher(chat_id, messages):
     for key in DAYS: # если нужно перебрать всю неделю, а не текущий день
         anime_list = animes.get(key)  # тут список словарей
         for anime in anime_list:
+            print(f'\nПроверяем {anime.get("name")}')
             url = anime.get('url')
             video_info = await get_last_serie(url, anime.get('name'))
             if type(video_info) is tuple:
@@ -141,10 +140,11 @@ async def watcher(chat_id, messages):
                     if file_name == message.get('message_text'):
                         need_to_upload = False
                         print(f'Файл {file_name} уже отправлен на канал!')
-                        await add_videos(title=file_name, num_from_site=file_uid, date=str(dt.now()), to_chat=chat_id,
-                                         downloaded='True')
-                        await update_upload(field_value=file_uid)
-                        need_download = False
+                        if await add_videos(title=file_name, num_from_site=file_uid, date=str(dt.now()), to_chat=chat_id,
+                                         downloaded='True'):
+                            print(f'Информация о {file_name} - {file_uid} уже есть в БД')
+                        if await update_upload(field_value=file_uid, file_id=str(message.get('media_id'))):
+                            print(f'Успешно обновили {file_name} - {file_uid}')
 
                 if need_download:
                     await download_file(file_link, file_name, file_path, file_uid)
