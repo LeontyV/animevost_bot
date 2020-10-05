@@ -12,9 +12,7 @@ async def send_to_admin(*args):
     Отправляем сообщение Админу
     """
     me = await bot.get_me()
-    print(me.username)
-    # await bot.send_message(chat_id=admin_id, text="Бот запущен: " + me.username)
-    # await bot.send_message(chat_id=admin_id, text='Нажми: /menu /start')
+    await bot.send_message(chat_id=admin_id, text="Бот запущен: " + me.username)
 
 
 async def check_users(user):
@@ -72,6 +70,13 @@ async def post_in_channel():
                 await bot.send_message(chat_id=chat_id, text=text, parse_mode='html', disable_web_page_preview=True)
 
 
-async def post_video_in_channel():
+async def post_video_in_channel(messages):
     for chat_id in chat_ids:
-        await watcher(chat_id)
+        await watcher(chat_id, messages)
+
+
+@dp.message_handler(regexp='/db')
+async def show_db(message: types.Message):
+    if message.chat.username in accepted_users:
+        db_rows = await show_all()
+        await bot.send_message(chat_id=message.chat.id, text=db_rows, parse_mode='HTML')

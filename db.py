@@ -2,11 +2,11 @@ import sqlite3
 import os
 
 db_name = "db/videos.db"
+is_db_exists = sqlite3.connect(f'file:{db_name}?mode=rw', uri=True)
 conn_videos = sqlite3.connect(db_name)
 cursor_videos = conn_videos.cursor()
-# Проверяем наличие БД и создаем, если ее нет
-if os.path.exists(db_name):
-    # Создание таблицы
+if not is_db_exists:
+    # Создание таблицы videos
     cursor_videos.execute("""CREATE TABLE IF NOT EXISTS videos
                 (id INTEGER PRIMARY KEY, title text, num_from_site text, date text, user_id text, downloaded text, uploaded text, file_id text)
                 """)
@@ -21,13 +21,21 @@ if os.path.exists(db_name):
     print(f'Таблица {db_name} создана')
 
 
+async def show_all():
+    global conn_videos
+    global cursor_videos
+
+    request = f"SELECT * FROM videos"
+    cursor_videos.execute(request)
+    return cursor_videos.fetchall()
+
+
 # добавление видео
 async def add_videos(title=None, num_from_site=None, date=None, to_chat=None, downloaded='False', uploaded='False', file_id=None):
     global conn_videos
     global cursor_videos
 
     last_id = cursor_videos.lastrowid
-    #last_id += 1
     print(f'Последний номер записи id={last_id}')
     table = 'videos'
     cursor_videos.execute(f"""

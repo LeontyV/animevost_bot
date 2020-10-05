@@ -33,6 +33,7 @@ def clean_text(text):
     text = text.replace('\n', '')
     return text
 
+
 def get_animes():
     afisha = {}
 
@@ -117,15 +118,14 @@ async def get_last_serie(anime_url, folder_name):
     return download_link, serie_name, last_serie, file_path, need_to_download, need_to_upload
 
 
-async def watcher(chat_id):
+async def watcher(chat_id, messages):
     time_now = dt.now()
     day = time_now.today().weekday()
-    key = list(DAYS)[day]
+    key = list(DAYS)[day]  # забирает ключ для текущего дня
     animes = get_animes()
 
-    for key in DAYS:
+    for key in DAYS: # если нужно перебрать всю неделю, а не текущий день
         anime_list = animes.get(key)  # тут список словарей
-
         for anime in anime_list:
             url = anime.get('url')
             video_info = await get_last_serie(url, anime.get('name'))
@@ -136,6 +136,15 @@ async def watcher(chat_id):
                 file_path = video_info[3]
                 need_download = video_info[4]
                 need_to_upload = video_info[5]
+
+                for message in messages:
+                    if file_name == message.get('message_text'):
+                        need_to_upload = False
+                        print(f'Файл {file_name} уже отправлен на канал!')
+                        await add_videos(title=file_name, num_from_site=file_uid, date=str(dt.now()), to_chat=chat_id,
+                                         downloaded='True')
+                        await update_upload(field_value=file_uid)
+                        need_download = False
 
                 if need_download:
                     await download_file(file_link, file_name, file_path, file_uid)
@@ -148,7 +157,7 @@ async def watcher(chat_id):
                     clip = VideoFileClip(file_path)
                     duration = int(clip.duration)
                     await client.send_file(int(chat_id), file_path, filename=file_name, caption=file_name,
-                                           attributes=(DocumentAttributeVideo(duration,800,560),))
+                                           attributes=(DocumentAttributeVideo(duration, 800, 560),))
                     print(f'Файл {file_name} отправлен!')
                     await update_upload(field_value=file_uid)
 

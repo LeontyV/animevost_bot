@@ -3,11 +3,11 @@ import os
 
 from telethon import TelegramClient, events, sync
 from aiogram import Bot, Dispatcher, executor
-from config import BOT_TOKEN, api_id, api_hash, phone
+from telethon.tl.functions.messages import GetHistoryRequest
+
+from config import BOT_TOKEN, api_id, api_hash, phone, channel_names, accepted_users, DELAY
 from telethon.errors import SessionPasswordNeededError
 
-# задаем время повторения задания
-DELAY = 3600
 
 # создаем необходимые папки
 if not os.path.exists('session'):
@@ -25,15 +25,32 @@ bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
 dp = Dispatcher(bot, loop=loop)
 
 # создаем экземпляр клиента телеграм telethon
-client = TelegramClient('session/'+phone, api_id, api_hash)
+client = TelegramClient('session/' + phone, api_id, api_hash)
 client.connect()
+
+
+async def read_all_messages(channel_name):
+    messages = []
+    message_history = await client(
+        GetHistoryRequest(peer=channel_name, limit=0, offset_date=None, offset_id=0, max_id=0, min_id=0, add_offset=0,
+                          hash=0))
+    if not message_history.messages:
+        return
+    for message in message_history.messages:
+        if message.message:
+            messages.append({'message_id': message.id,
+                             'message_text': message.message,
+                             'media_id': message.media.document.id})
+
+    return messages
 
 
 async def schedule(myself, wait_time):
     while True:
-        print(f'Работает {myself.username}')
-        # client.send_message('Leonty', f'Запущен {myself.username}')
-        await post_video_in_channel()
+        await client.send_message(accepted_users[0], f'Запущен {myself.username}')
+        messages = await read_all_messages(channel_names[0])
+        await post_video_in_channel(messages)
+        print(f'Ожидаем {DELAY//60} минут')
         await asyncio.sleep(wait_time)
 
 
