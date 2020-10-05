@@ -1,3 +1,4 @@
+# Конфиг нужно переименовать в config.py
 BOT_TOKEN = ""  # Your token
 admin_id =  # Your id
 
