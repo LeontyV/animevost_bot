@@ -49,10 +49,6 @@ async def schedule(myself, wait_time):
     while True:
         await client.send_message(accepted_users[0], f'Запущен {myself.username}')
         messages = await read_all_messages(channel_names[0])
-        #print(len(messages))
-        #for message in messages:
-        #    print(message.get('message_text'))
-        #break
         await post_video_in_channel(messages)
         print(f'Ожидаем {DELAY//60} минут')
         await asyncio.sleep(wait_time)

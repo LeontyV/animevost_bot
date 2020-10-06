@@ -87,13 +87,12 @@ async def get_last_serie(anime_url, folder_name):
     serie_name = [serie for serie in list(series_json) if 'серия' in serie][-1]
     # номер последней серии
     last_serie = str(series_json.get(serie_name))
-    # проверка наличия уже такого файла
+    # проверка наличия записи в БД
     check_serie = await read_num_from_site(num_from_site=last_serie)
     need_to_download = True
     need_to_upload = True
     if check_serie is not None:
         check_serie = check_serie[0]
-        print(check_serie)
         if check_serie[5] == 'True':
             print(f'Нашли серию в базе и она уже скачана.')
             need_to_download = False

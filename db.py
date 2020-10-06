@@ -39,8 +39,6 @@ async def add_videos(id=None, title=None, num_from_site=None, date=None, to_chat
     global conn_videos
     global cursor_videos
 
-    #last_id = len(await show_all())
-    #print(f'Последний номер записи id={last_id-1}')
     table = 'videos'
     try:
         cursor_videos.execute(f"""
