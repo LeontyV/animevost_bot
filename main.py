@@ -32,7 +32,7 @@ client.connect()
 async def read_all_messages(channel_name):
     messages = []
     message_history = await client(
-        GetHistoryRequest(peer=channel_name, limit=0, offset_date=None, offset_id=0, max_id=0, min_id=0, add_offset=0,
+        GetHistoryRequest(peer=channel_name, limit=1000, offset_date=None, offset_id=0, max_id=0, min_id=0, add_offset=0,
                           hash=0))
     if not message_history.messages:
         return
@@ -49,6 +49,10 @@ async def schedule(myself, wait_time):
     while True:
         await client.send_message(accepted_users[0], f'Запущен {myself.username}')
         messages = await read_all_messages(channel_names[0])
+        #print(len(messages))
+        #for message in messages:
+        #    print(message.get('message_text'))
+        #break
         await post_video_in_channel(messages)
         print(f'Ожидаем {DELAY//60} минут')
         await asyncio.sleep(wait_time)

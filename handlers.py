@@ -79,7 +79,13 @@ async def post_video_in_channel(messages):
 async def show_db(message: types.Message):
     if message.chat.username in accepted_users:
         db_rows = await show_all()
+        print(db_rows)
+        len_db = len(db_rows)
         text = ''
-        for row in db_rows:
+        for num,row in enumerate(db_rows):
             text = text + f'Запись {str(row[0])} {row[1]} {row[2]}\n'
-        await bot.send_message(chat_id=message.chat.id, text=text, parse_mode='HTML')
+            if num % 10 == 0:
+                await bot.send_message(chat_id=message.chat.id, text=text, parse_mode='HTML')
+                text = ''
+            if num == len_db:
+                await bot.send_message(chat_id=message.chat.id, text=text, parse_mode='HTML')

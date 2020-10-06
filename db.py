@@ -12,7 +12,7 @@ cursor_videos = conn_videos.cursor()
 if not is_db_exists:
     # Создание таблицы videos
     cursor_videos.execute("""CREATE TABLE IF NOT EXISTS videos
-                (id INTEGER PRIMARY KEY, title text, num_from_site text UNIQUE, date text, user_id text, downloaded text, uploaded text, file_id text)
+                (id INTEGER UNIQUE, title text, num_from_site text, date text, user_id text, downloaded text, uploaded text, file_id text)
                 """)
     conn_videos.commit()
     print(f'Таблица {db_name} создана')
@@ -35,21 +35,21 @@ async def show_all():
 
 
 # добавление видео
-async def add_videos(title=None, num_from_site=None, date=None, to_chat=None, downloaded='False', uploaded='False', file_id=None):
+async def add_videos(id=None, title=None, num_from_site=None, date=None, to_chat=None, downloaded='False', uploaded='False', file_id=None):
     global conn_videos
     global cursor_videos
 
-    last_id = len(await show_all())
-    print(f'Последний номер записи id={last_id-1}')
+    #last_id = len(await show_all())
+    #print(f'Последний номер записи id={last_id-1}')
     table = 'videos'
     try:
         cursor_videos.execute(f"""
                     INSERT INTO {table}
-                    VALUES ('{last_id}', '{title}', '{num_from_site}', '{date}', '{to_chat}', '{downloaded}', '{uploaded}', '{file_id}')
+                    VALUES ('{int(id)}', '{title}', '{num_from_site}', '{date}', '{to_chat}', '{downloaded}', '{uploaded}', '{file_id}')
                 """)
         conn_videos.commit()
-    except sqlite3.IntegrityError:
-        print(f'Запись {title} = {num_from_site} уже есть в БД!')
+    except Exception as e:
+        print(f'Ошибка {e.args}')
         return True
     else:
         print(f'Запись {title} = {num_from_site} добавлена в БД!')

@@ -122,7 +122,7 @@ async def watcher(chat_id, messages):
     key = list(DAYS)[day]  # забирает ключ для текущего дня
     animes = get_animes()
 
-    for key in DAYS: # если нужно перебрать всю неделю, а не текущий день
+    for key in DAYS:  # если нужно перебрать всю неделю, а не текущий день
         anime_list = animes.get(key)  # тут список словарей
         for anime in anime_list:
             print(f'\nПроверяем {anime.get("name")}')
@@ -135,29 +135,40 @@ async def watcher(chat_id, messages):
                 file_path = video_info[3]
                 need_download = video_info[4]
                 need_to_upload = video_info[5]
-
+                message_id = 0
                 for message in messages:
                     if file_name == message.get('message_text'):
+                        message_id = message.get('message_id')
                         need_to_upload = False
                         print(f'Файл {file_name} уже отправлен на канал!')
-                        if await add_videos(title=file_name, num_from_site=file_uid, date=str(dt.now()), to_chat=chat_id,
-                                         downloaded='True'):
-                            print(f'Информация о {file_name} - {file_uid} уже есть в БД')
+                        await add_videos(id=message_id, title=file_name, num_from_site=file_uid, date=str(dt.now()),
+                                         to_chat=chat_id,
+                                         downloaded='True')
                         if await update_upload(field_value=file_uid, file_id=str(message.get('media_id'))):
                             print(f'Успешно обновили {file_name} - {file_uid}')
 
                 if need_download:
                     await download_file(file_link, file_name, file_path, file_uid)
-                    await add_videos(title=file_name, num_from_site=file_uid, date=str(dt.now()), to_chat=chat_id)
+                    await add_videos(id=message_id, title=file_name, num_from_site=file_uid, date=str(dt.now()),
+                                     to_chat=chat_id,
+                                     downloaded='True')
                     await update_download(num_from_site=file_uid)
 
                 if need_to_upload:
                     print(f'Отправляем {file_name}')
                     # me = await bot.get_me()
-                    clip = VideoFileClip(file_path)
+                    try:
+                        clip = VideoFileClip(file_path)
+                    except OSError:
+                        print(f'Ошибка открытия файла {file_name}')
+                        os.remove(file_path)
+                        continue
                     duration = int(clip.duration)
-                    await client.send_file(int(chat_id), file_path, filename=file_name, caption=file_name,
-                                           attributes=(DocumentAttributeVideo(duration, 800, 560),))
+                    try:
+                        await client.send_file(int(chat_id), file_path, filename=file_name, caption=file_name, attributes=(DocumentAttributeVideo(duration, 800, 560),))
+                    except sqlite3.OperationalError:
+                        print(f'чет база залочена!')
+                        continue
                     print(f'Файл {file_name} отправлен!')
                     await update_upload(field_value=file_uid)
 
