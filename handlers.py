@@ -23,9 +23,14 @@ async def check_users(user):
         return False
 
 
-@dp.channel_post_handler(regexp='/[Ss]tart')
+@dp.message_handler(regexp='/[Ss]tart')
 async def echo(message: types.Message):
     chat_id = str(message.chat.id)
+    username = message.chat.username
+    text = f'Привет, {username}!\nДля вывода расписания набери команду - /start.'
+    await bot.send_message(chat_id=chat_id, text=text, parse_mode='HTML')
+    await post_in_channel(chat_id)
+    """
     if chat_id in chat_ids:
         username = message.chat.username
         text = f'Привет, {username}!\nДля вывода расписания набери команду - /start.'
@@ -34,7 +39,7 @@ async def echo(message: types.Message):
     else:
         text = f'id={chat_id} не в списке разрешенных.'
         await bot.send_message(chat_id=chat_id, text=text)
-
+    """
 
 @dp.channel_post_handler(content_types=['text', 'video'])
 async def pick_up(message: types.Message):
@@ -57,17 +62,17 @@ async def echo(message: types.Message):
     await bot.send_message(chat_id=chat_id, text=text, parse_mode='HTML')
 
 
-async def post_in_channel():
-    for chat_id in chat_ids:
-        days = get_animes()
-        for key in days.keys():
-            animes = days.get(key)
-            if DAYS.get(key):
-                day_name = DAYS.get(key)
-                text = f'<b>Расписание на {day_name}:</b>'
-                for anime in animes:
-                    text = text + f'\n    - <a href="{anime.get("url")}">{anime.get("name")}</a>'
-                await bot.send_message(chat_id=chat_id, text=text, parse_mode='html', disable_web_page_preview=True)
+async def post_in_channel(chat_id):
+    #for chat_id in chat_ids:
+    days = get_animes()
+    for key in days.keys():
+        animes = days.get(key)
+        if DAYS.get(key):
+            day_name = DAYS.get(key)
+            text = f'<b>Расписание на {day_name}:</b>'
+            for anime in animes:
+                text = text + f'\n    - <a href="{anime.get("url")}">{anime.get("name")}</a>'
+            await bot.send_message(chat_id=chat_id, text=text, parse_mode='html', disable_web_page_preview=True)
 
 
 async def post_video_in_channel(messages):

@@ -19,10 +19,10 @@ from requests_wrapper import RequestsWrapper
 DAYS = {
     'raspisMon': 'Понедельник',
     'raspisTue': 'Вторник',
-    'raspisWed': 'Среда',
+    'raspisWed': 'Среду',
     'raspisThu': 'Четверг',
-    'raspisFri': 'Пятница',
-    'raspisSat': 'Суббота',
+    'raspisFri': 'Пятницу',
+    'raspisSat': 'Субботу',
     'raspisSun': 'Воскресенье',
 }
 
@@ -58,7 +58,8 @@ def get_animes():
 
 
 async def get_last_serie(anime_url, folder_name):
-    api_url = 'https://a71.agorov.org/frame2.php?play='
+    #api_url = 'https://a71.agorov.org/frame2.php?play='
+    api_url = 'https://animevost.am/frame2.php?play='
     folder_name = folder_name.replace(':', '-')
     folder_name = re.findall('^([ёЁА-яа-я,.\s-]+)', folder_name)[0]
     folder_name = folder_name.strip()
@@ -120,8 +121,13 @@ async def watcher(chat_id, messages):
     day = time_now.today().weekday()
     key = list(DAYS)[day]  # забирает ключ для текущего дня
     animes = get_animes()
-
+    if day > 1:
+        last_day = day - 1
+    else:
+        last_day = 7
     for key in DAYS:  # если нужно перебрать всю неделю, а не текущий день
+    #for day in [last_day, day]:
+        #key = list(DAYS)[day]
         anime_list = animes.get(key)  # тут список словарей
         for anime in anime_list:
             print(f'\nПроверяем {anime.get("name")}')
@@ -136,7 +142,7 @@ async def watcher(chat_id, messages):
                 need_to_upload = video_info[5]
                 message_id = 0
                 for message in messages:
-                    if file_name == message.get('message_text'):
+                    if file_name in message.get('message_text'):
                         message_id = message.get('message_id')
                         need_to_upload = False
                         print(f'Файл {file_name} уже отправлен на канал!')
@@ -163,8 +169,9 @@ async def watcher(chat_id, messages):
                         os.remove(file_path)
                         continue
                     duration = int(clip.duration)
+                    text = f'[{file_name}]\n<a href="{url}">Перейти на сайт</a>'
                     try:
-                        await client.send_file(int(chat_id), file_path, filename=file_name, caption=file_name, attributes=(DocumentAttributeVideo(duration, 800, 560),))
+                        await client.send_file(int(chat_id), file_path, filename=file_name, caption=text, attributes=(DocumentAttributeVideo(duration, 800, 560),), parse_mode='html')
                     except sqlite3.OperationalError:
                         print(f'чет база залочена!')
                         continue
@@ -200,6 +207,7 @@ async def download_file(download_link, serie_name, file_path, file_uid):
 
         if total_size != 0 and wrote != total_size:
             print("Ошибка! Файл не сохранился.")
+            os.remove(file_path)
             continue
         else:
             break

@@ -45,12 +45,13 @@ async def read_all_messages(channel_name):
     return messages
 
 
-async def schedule(myself, wait_time):
+async def schedule(myself, wait_time, start_time):
     while True:
-        await client.send_message(accepted_users[0], f'Запущен {myself.username}')
         messages = await read_all_messages(channel_names[0])
         await post_video_in_channel(messages)
-        print(f'Ожидаем {DELAY//60} минут')
+        up_time = dt.now() - start_time
+        text = f'UPTIME = ({up_time.days} дн., {up_time.seconds // 3600 % 24} ч., {up_time.seconds // 60 % 60} мин.)\n----> Ожидаем {DELAY // 60} минут'
+        await client.send_message(accepted_users[0], text)
         await asyncio.sleep(wait_time)
 
 
@@ -69,8 +70,8 @@ def check_connection():
 if __name__ == '__main__':
     from handlers import *
     from db import *
-
+    start_time = dt.now()
     myself = check_connection()
 
-    dp.loop.create_task(schedule(myself, DELAY))
+    dp.loop.create_task(schedule(myself, DELAY, start_time))
     executor.start_polling(dp, on_startup=send_to_admin, loop=loop)
